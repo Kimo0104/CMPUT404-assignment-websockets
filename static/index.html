@@ -35,6 +35,12 @@ var W = canvas.width  = window.innerWidth-6;
 var H = canvas.height = window.innerHeight-50;
 var wscounter = 0;
 var socket;
+// https://stackoverflow.com/a/14013068
+var backgroundImg = new Image();
+backgroundImg.onload = function () {
+    context.drawImage(backgroundImg, 0, 0, canvas.width, canvas.height); 
+};
+backgroundImg.src = 'greenland.jpg';
 
 function debug(str) {
     var debugDiv = document.getElementById('debug');
@@ -47,15 +53,30 @@ world = {};
 //XXX: TODO Make this prettier!
 function drawCircle(context,entity) {
     with(context) {
-        beginPath();                
+        beginPath();              
         lineWidth = 3;
         var x = entity["x"];
         var y = entity["y"];
         //moveTo(x,y);
-        fillStyle = entity["colour"];
-        strokeStyle = fillStyle;
-        arc(x, y, (entity["radius"])?entity["radius"]:50, 0, 2.0 * Math.PI, false);  
-        stroke();                                
+        drawCloud(context,x,y)                              
+    }
+}
+
+//https://stackoverflow.com/a/64173098
+const drawCloud = (context, x, y) => {
+    with(context){
+        beginPath();
+        arc(x, y, 60/3, Math.PI * 0.5, Math.PI * 1.5);
+        arc(x + 70/3, y - 60/3, 70/3, Math.PI * 1, Math.PI * 1.85);
+        arc(x + 152/3, y - 45/3, 50/3, Math.PI * 1.37, Math.PI * 1.91);
+        arc(x + 200/3, y, 60/3, Math.PI * 1.5, Math.PI * 0.5);
+        moveTo(x + 200/3, y + 60/3);
+        lineTo(x, y+60/3);
+        strokeStyle = '#797874';
+        stroke();
+        fillStyle = '#8ED6FF';
+        fill();
+        stroke();
     }
 }
 
@@ -72,8 +93,7 @@ function prepEntity(entity) {
 function clearFrame() {
     with(context) {
 	moveTo(0,0);
-	fillStyle = "#000";
-	fillRect(0,0,W,H);
+	context.drawImage(backgroundImg, 0, 0, canvas.width, canvas.height);
     }
 
 }
@@ -125,6 +145,7 @@ function addEntity(entity, data) {
     world[entity] = data;
     drawNextFrame(); // (but should we?)
     //XXX: Send a XHTML Request that updates the entity you just modified!
+    socket.send(JSON.stringify({[entity] : data}))
 }
 var counter = 0;
 function addEntityWithoutName(data) {
@@ -261,7 +282,12 @@ function wsSetup() {
     socket.onmessage = function(msg) {  
         try {
             debug("WebSocket Recv:" + msg.data);
-            //XXX: TODO What are you going to do here?            
+            //XXX: TODO What are you going to do here?
+            world = {
+                ...world,
+                ...JSON.parse(msg.data)
+            }
+            drawNextFrame()         
         } catch (e) {
             alert("socket on message: " + e);
         }
